@@ -1,14 +1,12 @@
 package mflix.api.daos;
 
 import com.mongodb.MongoClientSettings;
+import com.mongodb.MongoException;
 import com.mongodb.MongoWriteException;
 import com.mongodb.ReadConcern;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
-import com.mongodb.client.model.Aggregates;
-import com.mongodb.client.model.Filters;
-import com.mongodb.client.model.Sorts;
-import com.mongodb.client.model.Updates;
+import com.mongodb.client.model.*;
 import com.mongodb.client.result.DeleteResult;
 import com.mongodb.client.result.UpdateResult;
 import mflix.api.models.Comment;
@@ -29,6 +27,10 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
+import static com.mongodb.client.model.Filters.and;
+import static com.mongodb.client.model.Filters.eq;
+import static com.mongodb.client.model.Updates.combine;
+import static com.mongodb.client.model.Updates.set;
 import static org.bson.codecs.configuration.CodecRegistries.fromProviders;
 import static org.bson.codecs.configuration.CodecRegistries.fromRegistries;
 
@@ -80,11 +82,21 @@ public class CommentDao extends AbstractMFlixDao {
    */
   public Comment addComment(Comment comment) {
 
-    // TODO> Ticket - Update User reviews: implement the functionality that enables adding a new
+    // > Ticket - Update User reviews: implement the functionality that enables adding a new
     // comment.
-    // TODO> Ticket - Handling Errors: Implement a try catch block to
+    // > Ticket - Handling Errors: Implement a try catch block to
     // handle a potential write exception when given a wrong commentId.
-    return null;
+
+    if (comment.getOid() == null) {
+      throw new IncorrectDaoOperation("No comment id");
+    }
+
+    try {
+      commentCollection.insertOne(comment);
+    } catch (MongoException e) {
+      throw new IncorrectDaoOperation(e.getMessage());
+    }
+    return comment;
   }
 
   /**
@@ -102,11 +114,22 @@ public class CommentDao extends AbstractMFlixDao {
    */
   public boolean updateComment(String commentId, String text, String email) {
 
-    // TODO> Ticket - Update User reviews: implement the functionality that enables updating an
+    // > Ticket - Update User reviews: implement the functionality that enables updating an
     // user own comments
-    // TODO> Ticket - Handling Errors: Implement a try catch block to
+    // > Ticket - Handling Errors: Implement a try catch block to
     // handle a potential write exception when given a wrong commentId.
-    return false;
+    Bson filter = and(
+            eq("email", email),
+            eq("_id", new ObjectId(commentId)));
+    Bson update = combine(set("text", text), set("date", new Date()));
+
+    UpdateResult updateResult;
+    try {
+      updateResult = commentCollection.updateOne(filter, update);
+    } catch (MongoException e) {
+      return false;
+    }
+    return updateResult.getModifiedCount() > 0;
   }
 
   /**
