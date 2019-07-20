@@ -28,7 +28,12 @@ import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
+import static com.mongodb.client.model.Filters.eq;
+import static com.mongodb.client.model.Updates.combine;
+import static com.mongodb.client.model.Updates.set;
+import static com.mongodb.client.model.Updates.setOnInsert;
 import static org.bson.codecs.configuration.CodecRegistries.fromProviders;
 import static org.bson.codecs.configuration.CodecRegistries.fromRegistries;
 
@@ -106,7 +111,7 @@ public class UserDao extends AbstractMFlixDao {
   public User getUser(String email) {
     User user;
     //> Ticket: User Management - implement the query that returns the first User object.
-      Bson filter = Filters.eq("email", email);
+      Bson filter = eq("email", email);
       user = usersCollection.find(filter).iterator().tryNext();
     return user;
   }
@@ -120,14 +125,14 @@ public class UserDao extends AbstractMFlixDao {
   public Session getUserSession(String userId) {
     //> Ticket: User Management - implement the method that returns Sessions for a given
     // userId
-      Bson filter = Filters.eq("user_id", userId);
+      Bson filter = eq("user_id", userId);
       Session session = sessionsCollection.find(filter).iterator().tryNext();
     return session;
   }
 
   public boolean deleteUserSessions(String userId) {
     //> Ticket: User Management - implement the delete user sessions method
-      Bson filter = Filters.eq("user_id", userId);
+      Bson filter = eq("user_id", userId);
       DeleteResult deleteResult = sessionsCollection.deleteMany(filter);
     return deleteResult.wasAcknowledged();
   }
@@ -141,9 +146,9 @@ public class UserDao extends AbstractMFlixDao {
   public boolean deleteUser(String email) {
     // remove user sessions
     //> Ticket: User Management - implement the delete user method
-    //TODO > Ticket: Handling Errors - make this method more robust by
+    //> Ticket: Handling Errors - make this method more robust by
     // handling potential exceptions.
-      Bson filter = Filters.eq("email", email);
+      Bson filter = eq("email", email);
       try {
           usersCollection.deleteOne(filter);
           deleteUserSessions(email);
@@ -162,11 +167,20 @@ public class UserDao extends AbstractMFlixDao {
    * @return User object that just been updated.
    */
   public boolean updateUserPreferences(String email, Map<String, ?> userPreferences) {
-    //TODO> Ticket: User Preferences - implement the method that allows for user preferences to
+    //> Ticket: User Preferences - implement the method that allows for user preferences to
     // be updated.
-    //TODO > Ticket: Handling Errors - make this method more robust by
-    // handling potential exceptions when updating an entry.
-    return false;
-  }
+      if (userPreferences == null) {
+          throw new IncorrectDaoOperation("No-no-no");
+      }
 
+      Bson queryFilter = eq("email", email);
+      //> Ticket: Handling Errors - make this method more robust by
+      // handling potential exceptions when updating an entry.
+      try {
+          usersCollection.updateOne(queryFilter, set("preferences", userPreferences));
+      } catch (MongoException e) {
+          return false;
+      }
+      return true;
+  }
 }
