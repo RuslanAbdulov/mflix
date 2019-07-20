@@ -1,10 +1,12 @@
 package mflix.api.daos;
 
 import com.mongodb.MongoClientSettings;
+import com.mongodb.MongoException;
 import com.mongodb.MongoWriteException;
 import com.mongodb.WriteConcern;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
+import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.model.Updates;
 import com.mongodb.client.result.DeleteResult;
@@ -22,6 +24,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 
 import java.text.MessageFormat;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 import static org.bson.codecs.configuration.CodecRegistries.fromProviders;
@@ -31,9 +35,9 @@ import static org.bson.codecs.configuration.CodecRegistries.fromRegistries;
 public class UserDao extends AbstractMFlixDao {
 
   private final MongoCollection<User> usersCollection;
-  //TODO> Ticket: User Management - do the necessary changes so that the sessions collection
+  //> Ticket: User Management - do the necessary changes so that the sessions collection
   //returns a Session object
-  private final MongoCollection<Document> sessionsCollection;
+  private final MongoCollection<Session> sessionsCollection;
 
   private final Logger log;
 
@@ -48,9 +52,9 @@ public class UserDao extends AbstractMFlixDao {
 
     usersCollection = db.getCollection("users", User.class).withCodecRegistry(pojoCodecRegistry);
     log = LoggerFactory.getLogger(this.getClass());
-    //TODO> Ticket: User Management - implement the necessary changes so that the sessions
+    //> Ticket: User Management - implement the necessary changes so that the sessions
     // collection returns a Session objects instead of Document objects.
-    sessionsCollection = db.getCollection("sessions");
+    sessionsCollection = db.getCollection("sessions", Session.class).withCodecRegistry(pojoCodecRegistry);
   }
 
   /**
@@ -76,11 +80,19 @@ public class UserDao extends AbstractMFlixDao {
    * @return true if successful
    */
   public boolean createUserSession(String userId, String jwt) {
-    //TODO> Ticket: User Management - implement the method that allows session information to be
-    // stored in it's designated collection.
-    return false;
-    //TODO > Ticket: Handling Errors - implement a safeguard against
-    // creating a session with the same jwt token.
+      //> Ticket: User Management - implement the method that allows session information to be
+      // stored in it's designated collection.
+      Session session = new Session();
+      session.setUserId(userId);
+      session.setJwt(jwt);
+      //TODO > Ticket: Handling Errors - implement a safeguard against
+      // creating a session with the same jwt token.
+      try {
+          sessionsCollection.insertOne(session);
+      } catch (MongoException e) {
+          return false;
+      }
+      return true;
   }
 
   /**
@@ -90,9 +102,12 @@ public class UserDao extends AbstractMFlixDao {
    * @return User object or null.
    */
   public User getUser(String email) {
-    User user = null;
-    //TODO> Ticket: User Management - implement the query that returns the first User object.
-    return user;
+    User user;
+    //> Ticket: User Management - implement the query that returns the first User object.
+      List<User> users = new ArrayList<>();
+      Bson filter = Filters.eq("email", email);
+      usersCollection.find(filter).iterator().forEachRemaining(users::add);
+    return firstOrNull(users);
   }
 
   /**
@@ -102,14 +117,19 @@ public class UserDao extends AbstractMFlixDao {
    * @return Session object or null.
    */
   public Session getUserSession(String userId) {
-    //TODO> Ticket: User Management - implement the method that returns Sessions for a given
+    //> Ticket: User Management - implement the method that returns Sessions for a given
     // userId
-    return null;
+      List<Session> sessions = new ArrayList<>();
+      Bson filter = Filters.eq("user_id", userId);
+      sessionsCollection.find(filter).iterator().forEachRemaining(sessions::add);
+    return firstOrNull(sessions);
   }
 
   public boolean deleteUserSessions(String userId) {
-    //TODO> Ticket: User Management - implement the delete user sessions method
-    return false;
+    //> Ticket: User Management - implement the delete user sessions method
+      Bson filter = Filters.eq("user_id", userId);
+      DeleteResult deleteResult = sessionsCollection.deleteMany(filter);
+    return deleteResult.wasAcknowledged();
   }
 
   /**
@@ -120,10 +140,17 @@ public class UserDao extends AbstractMFlixDao {
    */
   public boolean deleteUser(String email) {
     // remove user sessions
-    //TODO> Ticket: User Management - implement the delete user method
+    //> Ticket: User Management - implement the delete user method
     //TODO > Ticket: Handling Errors - make this method more robust by
     // handling potential exceptions.
-    return false;
+      Bson filter = Filters.eq("email", email);
+      try {
+          usersCollection.deleteOne(filter);
+          deleteUserSessions(email);
+      } catch (MongoException e) {
+          return false;
+      }
+      return true;
   }
 
   /**
@@ -140,5 +167,9 @@ public class UserDao extends AbstractMFlixDao {
     //TODO > Ticket: Handling Errors - make this method more robust by
     // handling potential exceptions when updating an entry.
     return false;
+  }
+
+  private <T> T firstOrNull(List<T> list) {
+      return list.size() > 0 ? list.get(0) : null;
   }
 }
