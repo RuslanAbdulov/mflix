@@ -72,11 +72,14 @@ public class UserDao extends AbstractMFlixDao {
   public boolean addUser(User user) {
     //> Ticket: Durable Writes -  you might want to use a more durable write concern here!
       //WriteConcern
-    usersCollection.withWriteConcern(WriteConcern.MAJORITY).insertOne(user);
-    return true;
-    //TODO > Ticket: Handling Errors - make sure to only add new users
-    // and not users that already exist.
-
+      //> Ticket: Handling Errors - make sure to only add new users
+      // and not users that already exist.
+      try {
+          usersCollection.withWriteConcern(WriteConcern.MAJORITY).insertOne(user);
+      } catch (MongoException e) {
+          return false;
+      }
+        return true;
   }
 
   /**
@@ -89,13 +92,15 @@ public class UserDao extends AbstractMFlixDao {
   public boolean createUserSession(String userId, String jwt) {
       //> Ticket: User Management - implement the method that allows session information to be
       // stored in it's designated collection.
-      Session session = new Session();
-      session.setUserId(userId);
-      session.setJwt(jwt);
-      //TODO > Ticket: Handling Errors - implement a safeguard against
+      Bson filter = eq("user_id", userId);
+      Bson update = set("jwt", jwt);
+
+      UpdateOptions options = new UpdateOptions();
+      options.upsert(true);
+      //> Ticket: Handling Errors - implement a safeguard against
       // creating a session with the same jwt token.
       try {
-          sessionsCollection.insertOne(session);
+          sessionsCollection.updateOne(filter, update, options);
       } catch (MongoException e) {
           return false;
       }
