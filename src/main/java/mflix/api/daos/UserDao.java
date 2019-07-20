@@ -106,10 +106,9 @@ public class UserDao extends AbstractMFlixDao {
   public User getUser(String email) {
     User user;
     //> Ticket: User Management - implement the query that returns the first User object.
-      List<User> users = new ArrayList<>();
       Bson filter = Filters.eq("email", email);
-      usersCollection.find(filter).iterator().forEachRemaining(users::add);
-    return firstOrNull(users);
+      user = usersCollection.find(filter).iterator().tryNext();
+    return user;
   }
 
   /**
@@ -121,10 +120,9 @@ public class UserDao extends AbstractMFlixDao {
   public Session getUserSession(String userId) {
     //> Ticket: User Management - implement the method that returns Sessions for a given
     // userId
-      List<Session> sessions = new ArrayList<>();
       Bson filter = Filters.eq("user_id", userId);
-      sessionsCollection.find(filter).iterator().forEachRemaining(sessions::add);
-    return firstOrNull(sessions);
+      Session session = sessionsCollection.find(filter).iterator().tryNext();
+    return session;
   }
 
   public boolean deleteUserSessions(String userId) {
@@ -171,7 +169,4 @@ public class UserDao extends AbstractMFlixDao {
     return false;
   }
 
-  private <T> T firstOrNull(List<T> list) {
-      return list.size() > 0 ? list.get(0) : null;
-  }
 }
