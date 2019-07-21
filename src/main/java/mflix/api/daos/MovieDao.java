@@ -10,10 +10,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.LinkedList;
-import java.util.List;
+import java.text.DateFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.*;
 
 import static com.mongodb.client.model.Projections.fields;
 import static com.mongodb.client.model.Projections.include;
@@ -82,6 +82,24 @@ public class MovieDao extends AbstractMFlixDao {
     pipeline.add(commentsLookup);
 
     Document movie = moviesCollection.aggregate(pipeline).first();
+
+
+    //Try In MovieDao.getMovie find only by ID.
+    //Or if you used unwind in MovieDao.getMovie don’t forget to set unwindOptions.preserveNullAndEmptyArrays true.
+    //
+    //UnwindOptions unwindOptions = new UnwindOptions();
+    //unwindOptions.preserveNullAndEmptyArrays(true);
+    //Bson unwind = Aggregates.unwind("$comments", unwindOptions);
+
+    //FIXME hack to change type from String to Date
+    DateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
+    Date date;
+    try {
+      date = df.parse(movie.getString("lastupdated"));
+      movie.put("lastupdated", date);
+    } catch (ParseException e) {
+      e.printStackTrace();
+    }
 
     return movie;
   }
