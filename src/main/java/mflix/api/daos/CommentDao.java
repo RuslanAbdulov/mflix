@@ -167,12 +167,35 @@ public class CommentDao extends AbstractMFlixDao {
    */
   public List<Critic> mostActiveCommenters() {
     List<Critic> mostActive = new ArrayList<>();
-    // // TODO> Ticket: User Report - execute a command that returns the
+    // // > Ticket: User Report - execute a command that returns the
     // // list of 20 users, group by number of comments. Don't forget,
     // // this report is expected to be produced with an high durability
     // // guarantee for the returned documents. Once a commenter is in the
     // // top 20 of users, they become a Critic, so mostActive is composed of
     // // Critic objects.
+
+    List<Bson> pipeline = new ArrayList<>();
+    //Arrays.asList(group("$email", sum("count", 1L), push("comments", "$text")), sort(descending("count")), limit(20L), new Document())
+
+    BsonField sum1 = Accumulators.sum("count", 1);
+    Bson groupStage = Aggregates.group("$email", sum1);
+    Bson sortOrder = Sorts.descending("count");
+    Bson sortStage = Aggregates.sort(sortOrder);
+    Bson limitStage = Aggregates.limit(20);
+
+    pipeline.add(groupStage);
+    pipeline.add(sortStage);
+    pipeline.add(limitStage);
+
+    db.getCollection(COMMENT_COLLECTION)
+            .withReadConcern(ReadConcern.MAJORITY)
+            .aggregate(pipeline)
+            .iterator()
+            .forEachRemaining(d-> mostActive.add(
+                    new Critic(
+                            d.get("_id", String.class),
+                            d.get("count", Integer.class))));
+
     return mostActive;
   }
 }
