@@ -1,9 +1,6 @@
 package mflix.api.daos;
 
-import com.mongodb.MongoClientSettings;
-import com.mongodb.MongoException;
-import com.mongodb.MongoWriteException;
-import com.mongodb.WriteConcern;
+import com.mongodb.*;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.model.Filters;
@@ -76,8 +73,12 @@ public class UserDao extends AbstractMFlixDao {
       // and not users that already exist.
       try {
           usersCollection.withWriteConcern(WriteConcern.MAJORITY).insertOne(user);
-      } catch (MongoException e) {
-          return false;
+      } catch (MongoWriteException e) {
+          if(e.getError().getCategory() == ErrorCategory.DUPLICATE_KEY) {
+              throw new IncorrectDaoOperation("duplicated key");
+          } else {
+              return false;
+          }
       }
         return true;
   }
