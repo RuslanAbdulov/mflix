@@ -95,8 +95,10 @@ public class MovieDao extends AbstractMFlixDao {
     DateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
     Date date;
     try {
-      date = df.parse(movie.getString("lastupdated"));
-      movie.put("lastupdated", date);
+      if (movie != null) {
+        date = df.parse(movie.getString("lastupdated"));
+        movie.put("lastupdated", date);
+      }
     } catch (ParseException e) {
       e.printStackTrace();
     }
